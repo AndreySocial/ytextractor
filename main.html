@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YT Extractor</title>
+<script>
+(function(){var t;try{t=localStorage.getItem('ytx-theme')}catch(e){}
+if(!t)t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+document.documentElement.dataset.theme=t;})();
+</script>
+<style>
+:root,[data-theme=light]{
+  --bg:#f4f4f4;--surface:#ffffff;--surface2:#ececec;--text:#0a0a0a;--muted:#6e6e6e;
+  --line:#d9d9d9;--accent:#0a0a0a;--accent-ink:#ffffff;--shade:rgba(0,0,0,.72);
+  --radius:12px;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+[data-theme=dark]{
+  --bg:#000000;--surface:#0f0f0f;--surface2:#1c1c1c;--text:#f2f2f2;--muted:#8f8f8f;
+  --line:#2b2b2b;--accent:#f2f2f2;--accent-ink:#000000;--shade:rgba(0,0,0,.78);
+}
+*{box-sizing:border-box}
+html{color-scheme:light}[data-theme=dark]{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;transition:background .2s,color .2s}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 16px 60px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.logo{width:40px;height:28px;border-radius:8px;background:var(--accent);display:grid;place-items:center;flex:none}
+.logo::after{content:"";border-left:11px solid var(--accent-ink);border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted);font-size:13px}
+header .grow{flex:1;min-width:0}
+button,.btn{appearance:none;border:1px solid var(--line);background:var(--surface2);color:var(--text);
+  border-radius:9px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;text-decoration:none;
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:border-color .15s}
+button:hover,.btn:hover{border-color:var(--text)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;padding:10px 20px;font-size:14px}
+button:disabled{opacity:.45;cursor:default}
+button.ghost{background:transparent}
+.icon{width:36px;height:36px;padding:0;justify-content:center;font-size:16px;border-radius:50%}
+
+form.search{display:flex;gap:8px;align-items:stretch;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius);padding:8px}
+form.search:focus-within{border-color:var(--text)}
+form.search textarea{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font:inherit;font-size:15px;
+  padding:9px 12px;outline:none;resize:vertical;min-height:44px;max-height:260px}
+.hint{font-size:12px;color:var(--muted);margin:6px 4px 0}
+.status{margin:10px 2px 0;font-size:13px;color:var(--muted);min-height:20px}
+.status .ok{color:var(--text);font-weight:600}
+.status .err{color:var(--text);font-weight:600;text-decoration:underline}
+
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:18px 0 12px}
+.toolbar .count{font-weight:600;margin-right:auto}
+
+/* ---------- grid 3×3 ---------- */
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:980px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.grid{grid-template-columns:1fr}}
+.vc{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  display:flex;flex-direction:column;transition:border-color .2s,box-shadow .2s}
+.vc.flash{border-color:var(--text);box-shadow:0 0 0 2px var(--text)}
+.thumb{position:relative;aspect-ratio:16/9;background:var(--surface2);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .res{position:absolute;right:8px;bottom:8px;background:var(--shade);color:#fff;font-size:11px;padding:2px 7px;border-radius:6px}
+.thumb .x{position:absolute;right:8px;top:8px;width:28px;height:28px;padding:0;justify-content:center;border-radius:50%;
+  background:var(--shade);color:#fff;border:0;font-size:15px;opacity:.85}
+.thumb .x:hover{opacity:1}
+.vc .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
+.vc h3{font-size:15px;line-height:1.35;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.vc .meta{color:var(--muted);font-size:12.5px}
+.vc .err{font-size:13px;padding:10px;border:1px dashed var(--text);border-radius:8px}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+details.more{border-top:1px solid var(--line);padding-top:8px}
+details.more summary{cursor:pointer;font-size:13px;font-weight:600;list-style:none;display:flex;justify-content:space-between}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::after{content:"＋";color:var(--muted)}
+details.more[open] summary::after{content:"－"}
+details.more > div{margin-top:8px}
+.desc{white-space:pre-wrap;word-wrap:break-word;max-height:240px;overflow:auto;background:var(--surface2);
+  border-radius:8px;padding:10px;font-size:13px}
+.desc a{color:var(--text)}
+.empty{color:var(--muted);font-size:13px;padding:10px;background:var(--surface2);border-radius:8px}
+.tracks{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12.5px}
+.chip small{color:var(--muted)}
+.note{color:var(--muted);font-size:12px;margin:8px 0 0}
+.skel{background:linear-gradient(90deg,var(--surface2),var(--line),var(--surface2));background-size:200% 100%;
+  animation:sk 1.2s infinite;border-radius:6px}
+@keyframes sk{to{background-position:-200% 0}}
+.placeholder{grid-column:1/-1;text-align:center;color:var(--muted);padding:48px 16px;border:1px dashed var(--line);border-radius:var(--radius)}
+
+/* ---------- history ---------- */
+.panel{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px}
+.panel > summary{cursor:pointer;font-weight:600;font-size:14px}
+.hist-tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.hist-tools input{flex:1;min-width:180px}
+input.field{font:inherit;font-size:13px;background:var(--surface2);color:var(--text);
+  border:1px solid var(--line);border-radius:9px;padding:8px 12px;outline:none}
+input.field:focus{border-color:var(--text)}
+.day{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin:14px 0 6px}
+.hi{display:flex;align-items:center;gap:10px;padding:6px;border-radius:9px}
+.hi:hover{background:var(--surface2)}
+.hi img{width:80px;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:var(--surface2);flex:none}
+.hi .info{flex:1;min-width:0}
+.hi .ttl{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.hi .ttl:hover{text-decoration:underline}
+.hi .sub{font-size:12px;color:var(--muted)}
+.hi .acts{display:flex;gap:4px;flex:none}
+.hi .acts button,.hi .acts a{padding:4px 9px;font-size:12px}
+.hist-list{max-height:520px;overflow:auto}
+.settings label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+.settings input{width:100%;font-family:var(--mono)}
+.settings .row{margin-top:10px}
+.hidden{display:none!important}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);
+  padding:8px 16px;border-radius:999px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:9}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"></div>
+    <div class="grow">
+      <h1>YT Extractor</h1>
+      <p>Название, превью 16:9, описание и субтитры YouTube-видео через официальный API</p>
+    </div>
+    <button class="icon" id="theme" title="Сменить тему">◐</button>
+  </header>
+
+  <form class="search" id="form">
+    <textarea id="url" rows="2" placeholder="Вставь одну или сколько угодно ссылок — через пробел, запятую или с новой строки" autocomplete="off" spellcheck="false"></textarea>
+    <button class="primary" id="go" type="submit">Получить</button>
+  </form>
+  <p class="hint">Вставка ссылок запускает загрузку сразу. Ctrl+Enter — отправить вручную.</p>
+  <div class="status" id="status"></div>
+
+  <div class="toolbar">
+    <span class="count" id="count">Видео: 0</span>
+    <button id="allThumbs">⬇ Все превью</button>
+    <button id="allTitles">Копировать все названия</button>
+    <button id="clearGrid" class="ghost">Очистить сетку</button>
+  </div>
+  <div class="grid" id="grid"></div>
+
+  <details class="panel" id="histPanel" open>
+    <summary>🕘 История вставок <span id="histCount" style="color:var(--muted);font-weight:400"></span></summary>
+    <div class="hist-tools">
+      <input class="field" id="histSearch" type="search" placeholder="Поиск по истории…">
+      <button id="histAll">Открыть все найденные</button>
+      <button id="histClear" class="ghost">Очистить историю</button>
+    </div>
+    <div class="hist-list" id="histList"></div>
+  </details>
+
+  <details class="panel settings">
+    <summary>⚙ Ключ API</summary>
+    <label for="sKey">YouTube Data API key</label>
+    <input class="field" id="sKey" type="text" placeholder="AIza…">
+    <div class="row">
+      <button id="sSave">Сохранить</button>
+      <button id="sReset">Вернуть ключ из файла</button>
+    </div>
+  </details>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const DEFAULT_KEY = '';
+
+/* ---------- storage ---------- */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : v; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, v); }catch{} },
+  del(k){ try{ localStorage.removeItem(k); }catch{} }
+};
+
+/* ---------- theme (ч/б) ---------- */
+$('#theme').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = t; store.set('ytx-theme', t);
+};
+
+/* ---------- api key ---------- */
+let apiKey = store.get('ytx-key', '') || DEFAULT_KEY;
+$('#sKey').value = apiKey;
+$('#sSave').onclick = () => { apiKey = $('#sKey').value.trim() || DEFAULT_KEY; store.set('ytx-key', apiKey); toast('Сохранено'); };
+$('#sReset').onclick = () => { store.del('ytx-key'); apiKey = DEFAULT_KEY; $('#sKey').value = apiKey; toast('Ключ из файла'); };
+
+/* ---------- helpers ---------- */
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1600); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function safeName(s){ return (s || 'video').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim().slice(0, 80) || 'video'; }
+function download(name, data, type='text/plain;charset=utf-8'){
+  const blob = data instanceof Blob ? data : new Blob([data], {type});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+async function copy(text){
+  try{ await navigator.clipboard.writeText(text); }
+  catch{ const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  toast('Скопировано');
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function api(path){
+  const r = await fetch(`https://www.googleapis.com/youtube/v3/${path}&key=${encodeURIComponent(apiKey)}`);
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok || j.error){
+    const reason = j.error && j.error.errors && j.error.errors[0] && j.error.errors[0].reason;
+    if(reason === 'quotaExceeded') throw new Error('Суточный лимит API исчерпан, он обновится в полночь по тихоокеанскому времени');
+    if(reason === 'keyInvalid' || (r.status === 400 && /key/i.test((j.error && j.error.message) || ''))) throw new Error('Неверный ключ API');
+    if(r.status === 403) throw new Error('Доступ запрещён: проверь, что YouTube Data API v3 включён и ключ не ограничен по сайтам');
+    throw new Error((j.error && j.error.message) || 'HTTP ' + r.status);
+  }
+  return j;
+}
+const langName = (() => {
+  let dn = null; try{ dn = new Intl.DisplayNames(['ru'], {type:'language'}); }catch{}
+  return code => { try{ return dn ? dn.of(code) : code; }catch{ return code; } };
+})();
+
+function parseId(input){
+  input = input.trim();
+  if(!input) return null;
+  if(/^[\w-]{11}$/.test(input)) return input;
+  try{
+    const u = new URL(/^https?:/i.test(input) ? input : 'https://' + input);
+    const h = u.hostname.replace(/^www\.|^m\.|^music\./, '');
+    if(h === 'youtu.be'){ const m = u.pathname.match(/^\/([\w-]{11})/); return m ? m[1] : null; }
+    if(h.endsWith('youtube.com') || h.endsWith('youtube-nocookie.com')){
+      const v = u.searchParams.get('v'); if(v && /^[\w-]{11}/.test(v)) return v.slice(0, 11);
+      const m = u.pathname.match(/\/(?:shorts|embed|live|v|e)\/([\w-]{11})/);
+      if(m) return m[1];
+    }
+  }catch{}
+  const m = input.match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([\w-]{11})(?![\w-])/);
+  return m ? m[1] : null;
+}
+function parseMany(text){
+  const out = [];
+  for(const tok of text.split(/[\s,;]+/)){ const id = parseId(tok); if(id && !out.includes(id)) out.push(id); }
+  return out;
+}
+
+/* ---------- history ---------- */
+let history = [];
+try{ history = JSON.parse(store.get('ytx-history', '[]')) || []; }catch{ history = []; }
+const saveHistory = () => store.set('ytx-history', JSON.stringify(history.slice(0, 1000)));
+function histTouch(id){
+  const i = history.findIndex(h => h.id === id);
+  const prev = i >= 0 ? history.splice(i, 1)[0] : {id, title:'', author:'', n:0};
+  prev.t = Date.now(); prev.n = (prev.n || 0) + 1;
+  history.unshift(prev);
+}
+function histUpdate(id, data){
+  const h = history.find(h => h.id === id); if(!h) return;
+  Object.assign(h, data); saveHistory(); renderHistory();
+}
+function dayLabel(ts){
+  const d = new Date(ts), now = new Date();
+  const s = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((s(now) - s(d)) / 864e5);
+  if(diff === 0) return 'Сегодня';
+  if(diff === 1) return 'Вчера';
+  return d.toLocaleDateString('ru-RU', {day:'numeric', month:'long', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric', weekday:'short'});
+}
+function filteredHistory(){
+  const q = $('#histSearch').value.trim().toLowerCase();
+  return q ? history.filter(h => (h.title + ' ' + h.author + ' ' + h.id).toLowerCase().includes(q)) : history;
+}
+function renderHistory(){
+  const list = filteredHistory();
+  $('#histCount').textContent = history.length ? `· ${history.length}` : '';
+  if(!history.length){ $('#histList').innerHTML = '<div class="empty">Здесь появятся все ссылки, которые ты вставлял, с датой и временем.</div>'; return; }
+  if(!list.length){ $('#histList').innerHTML = '<div class="empty">Ничего не найдено.</div>'; return; }
+  let html = '', last = '';
+  for(const h of list){
+    const dl = dayLabel(h.t);
+    if(dl !== last){ html += `<div class="day">${esc(dl)}</div>`; last = dl; }
+    const time = new Date(h.t).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+    html += `<div class="hi" data-id="${h.id}">
+      <img loading="lazy" src="https://i.ytimg.com/vi/${h.id}/mqdefault.jpg" alt="">
+      <div class="info">
+        <div class="ttl" data-act="open" title="Открыть в сетке">${esc(h.title || h.id)}</div>
+        <div class="sub">${time}${h.author ? ' · ' + esc(h.author) : ''}${h.n > 1 ? ` · вставлялось ${h.n}×` : ''}</div>
+      </div>
+      <div class="acts">
+        <button data-act="open" title="Добавить в сетку">＋</button>
+        <a class="btn" href="https://www.youtube.com/watch?v=${h.id}" target="_blank" rel="noopener" title="Открыть на YouTube">↗</a>
+        <button data-act="del" title="Удалить из истории">×</button>
+      </div></div>`;
+  }
+  $('#histList').innerHTML = html;
+}
+$('#histList').onclick = e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const id = b.closest('.hi').dataset.id;
+  if(b.dataset.act === 'open'){ addMany([id]); window.scrollTo({top:0, behavior:'smooth'}); }
+  if(b.dataset.act === 'del'){ history = history.filter(h => h.id !== id); saveHistory(); renderHistory(); }
+};
+$('#histSearch').oninput = renderHistory;
+$('#histClear').onclick = () => { if(!history.length || !confirm('Очистить всю историю?')) return; history = []; saveHistory(); renderHistory(); };
+$('#histAll').onclick = () => { const ids = filteredHistory().map(h => h.id); if(ids.length){ addMany(ids, {noHistory:true}); window.scrollTo({top:0, behavior:'smooth'}); } };
+
+/* ---------- thumbnail ---------- */
+function loadImg(src, cors){
+  return new Promise((res, rej) => { const i = new Image(); if(cors) i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = rej; i.src = src; });
+}
+async function pickThumb(id){
+  const opts = [{n:'maxresdefault', crop:false}, {n:'sddefault', crop:true}, {n:'hqdefault', crop:true}, {n:'mqdefault', crop:false}];
+  for(const o of opts){
+    const url = `https://i.ytimg.com/vi/${id}/${o.n}.jpg`;
+    let img = null, cors = true;
+    try{ img = await loadImg(url, true); }
+    catch{ try{ img = await loadImg(url, false); cors = false; }catch{ continue; } }
+    if(img.naturalWidth <= 120) continue;
+    return {url, img, cors, crop:o.crop};
+  }
+  return null;
+}
+function thumbCanvas(t){
+  const w = t.img.naturalWidth, h = t.img.naturalHeight, ch = Math.round(w * 9 / 16);
+  const c = document.createElement('canvas'); c.width = w; c.height = Math.min(ch, h);
+  c.getContext('2d').drawImage(t.img, 0, Math.max(0, (h - ch) / 2), w, c.height, 0, 0, w, c.height);
+  return c;
+}
+async function downloadThumb(v, quiet){
+  const t = v.thumb; if(!t) return;
+  const name = safeName(v.title || v.id) + '_16x9.jpg';
+  try{
+    if(!t.crop){ const r = await fetch(t.url); if(!r.ok) throw 0; return download(name, await r.blob()); }
+    if(!t.cors) throw 0;
+    const blob = await new Promise((res, rej) => thumbCanvas(t).toBlob(b => b ? res(b) : rej(), 'image/jpeg', 0.95));
+    download(name, blob);
+  }catch{ if(!quiet){ window.open(t.url, '_blank'); toast('Открыл картинку — сохрани её через правый клик'); } }
+}
+
+/* ---------- cards ---------- */
+const cards = new Map(); // id -> video state
+const linkify = t => esc(t).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+
+function makeCard(id){
+  const el = document.createElement('article');
+  el.className = 'vc'; el.dataset.id = id;
+  el.innerHTML = `
+    <div class="thumb"><img alt=""><span class="res"></span><button class="x" data-act="remove" title="Убрать из сетки">×</button></div>
+    <div class="body">
+      <h3><div class="skel" style="height:18px;width:90%"></div><div class="skel" style="height:18px;width:60%;margin-top:6px"></div></h3>
+      <div class="meta"></div>
+      <div class="slot"></div>
+    </div>`;
+  const v = {id, el, title:'', tracks:[]};
+  cards.set(id, v);
+  pickThumb(id).then(t => {
+    if(cards.get(id) !== v) return;
+    v.thumb = t;
+    const r = el.querySelector('.res');
+    if(!t){ r.textContent = 'нет превью'; return; }
+    el.querySelector('.thumb img').src = t.url;
+    const w = t.img.naturalWidth; r.textContent = `${w}×${Math.round(w * 9 / 16)}`;
+  });
+  return v;
+}
+function renderCard(v){
+  const el = v.el;
+  if(v.error){
+    el.querySelector('h3').textContent = v.title || v.id;
+    el.querySelector('.meta').textContent = '';
+    el.querySelector('.slot').innerHTML = `<div class="err">${esc(v.error)}</div>
+      <div class="row" style="margin-top:8px"><button data-act="retry">↻ Повторить</button>
+      <a class="btn" href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener">YouTube ↗</a></div>`;
+    return;
+  }
+  el.querySelector('h3').textContent = v.title || '—';
+  el.querySelector('h3').title = v.title || '';
+  const p = [];
+  if(v.author) p.push(esc(v.author));
+  if(v.published){ const d = new Date(v.published); if(!isNaN(d)) p.push(d.toLocaleDateString('ru-RU', {day:'numeric', month:'short', year:'numeric'})); }
+  if(v.views != null) p.push(Number(v.views).toLocaleString('ru-RU') + ' просм.');
+  el.querySelector('.meta').innerHTML = p.join(' · ');
+
+  let desc;
+  if(v.description == null) desc = '<div class="empty">Описание получить не удалось.</div>';
+  else if(!v.description.trim()) desc = '<div class="empty">У видео нет описания.</div>';
+  else desc = `<div class="desc">${linkify(v.description)}</div>
+    <div class="row" style="margin-top:8px"><button data-act="copyDesc">Копировать</button><button data-act="dlDesc">⬇ .txt</button></div>`;
+
+  let subs, subCount = '';
+  if(v.tracksErr) subs = `<div class="empty">Не удалось получить список: ${esc(v.tracksErr)}</div>`;
+  else if(!v.tracks.length) subs = '<div class="empty">У этого видео нет субтитров.</div>';
+  else { subCount = ` (${v.tracks.length})`;
+    subs = '<div class="tracks">' + v.tracks.map(t =>
+    `<span class="chip">${esc(langName(t.lang))}${t.auto ? ' <small>· авто</small>' : ''}${t.name ? ` <small>· ${esc(t.name)}</small>` : ''}</span>`).join('') + '</div>'; }
+
+  el.querySelector('.slot').innerHTML = `
+    <div class="row">
+      <button data-act="dlThumb">⬇ Превью 16:9</button>
+      <button data-act="copyTitle">Копировать название</button>
+      <a class="btn" href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener">YouTube ↗</a>
+    </div>
+    <details class="more"><summary>Описание</summary><div>${desc}</div></details>
+    <details class="more"><summary>Субтитры${subCount}</summary><div>${subs}
+      <p class="note">API показывает только языки. Текст: открой видео → «Показать текст видео» под описанием.</p></div></details>`;
+}
+
+$('#grid').onclick = e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const v = cards.get(b.closest('.vc').dataset.id); if(!v) return;
+  switch(b.dataset.act){
+    case 'remove': v.el.remove(); cards.delete(v.id); updateCount(); break;
+    case 'dlThumb': downloadThumb(v); break;
+    case 'copyTitle': v.title && copy(v.title); break;
+    case 'copyDesc': v.description && copy(v.description); break;
+    case 'dlDesc': v.description != null && download(safeName(v.title) + '_описание.txt', v.description); break;
+    case 'retry': v.error = null; v.el.querySelector('.slot').innerHTML = ''; fetchData([v]); break;
+  }
+};
+
+function updateCount(){
+  const n = cards.size;
+  $('#count').textContent = 'Видео: ' + n;
+  const ph = $('#grid .placeholder');
+  if(!n && !ph) $('#grid').innerHTML = '<div class="placeholder">Вставь ссылки выше — карточки появятся здесь сеткой по 3 в ряд.</div>';
+  if(n && ph) ph.remove();
+}
+
+/* ---------- loading ---------- */
+async function fetchData(list){
+  if(!list.length) return;
+  if(!apiKey){
+    list.forEach(v => { v.error = 'Нет ключа API — укажи его в «⚙ Ключ API» внизу.'; renderCard(v); });
+    setStatus('<span class="err">Укажи ключ YouTube Data API в настройках внизу.</span>');
+    document.querySelector('details.settings').open = true;
+    return;
+  }
+  setStatus(`Загружаю ${list.length}…`);
+  let ok = 0, bad = 0, lastErr = '';
+  for(let i = 0; i < list.length; i += 50){
+    const chunk = list.slice(i, i + 50).filter(v => cards.get(v.id) === v);
+    if(!chunk.length) continue;
+    let items = [];
+    try{
+      const j = await api(`videos?part=snippet,statistics&id=${chunk.map(v => v.id).join(',')}`);
+      items = j.items || [];
+    }catch(e){
+      lastErr = e.message;
+      chunk.forEach(v => { v.error = e.message; renderCard(v); bad++; });
+      continue;
+    }
+    const byId = new Map(items.map(it => [it.id, it]));
+    await Promise.all(chunk.map(async v => {
+      const it = byId.get(v.id);
+      if(!it){ v.error = 'Видео не найдено, удалено или закрыто'; renderCard(v); bad++; return; }
+      const sn = it.snippet;
+      Object.assign(v, {title:sn.title, author:sn.channelTitle, description:sn.description,
+        published:sn.publishedAt, views:it.statistics ? it.statistics.viewCount : null, error:null});
+      histUpdate(v.id, {title:sn.title, author:sn.channelTitle});
+      try{
+        const c = await api(`captions?part=snippet&videoId=${v.id}`);
+        v.tracks = (c.items||[]).map(i => ({lang:i.snippet.language, name:i.snippet.name, auto:i.snippet.trackKind === 'asr'}))
+          .sort((a, b) => (a.auto - b.auto) || a.lang.localeCompare(b.lang));
+        v.tracksErr = null;
+      }catch(e){ v.tracksErr = e.message; }
+      if(cards.get(v.id) === v) renderCard(v);
+      ok++;
+    }));
+  }
+  if(bad && !ok) setStatus(`<span class="err">${esc(lastErr || 'Не удалось загрузить')}</span>`);
+  else setStatus(`<span class="ok">Готово: ${ok}</span>${bad ? ` · с ошибкой: ${bad}` : ''}`);
+}
+
+function addMany(ids, opts = {}){
+  if(!ids.length){ setStatus('<span class="err">Не нашёл ни одной ссылки YouTube.</span>'); return; }
+  const fresh = [];
+  const grid = $('#grid');
+  // вставляем наверх, сохраняя порядок
+  for(const id of [...ids].reverse()){
+    if(!opts.noHistory) histTouch(id);
+    let v = cards.get(id);
+    if(v){ grid.prepend(v.el); v.el.classList.add('flash'); setTimeout(() => v.el.classList.remove('flash'), 1200); continue; }
+    v = makeCard(id); grid.prepend(v.el); fresh.unshift(v);
+  }
+  if(!opts.noHistory){ saveHistory(); renderHistory(); }
+  updateCount();
+  const dup = ids.length - fresh.length;
+  if(dup) toast(dup === ids.length ? 'Уже в сетке' : `${dup} уже было в сетке`);
+  fetchData(fresh);
+}
+
+const setStatus = html => { $('#status').innerHTML = html; };
+
+/* ---------- bulk ---------- */
+$('#allThumbs').onclick = async () => {
+  const list = [...cards.values()].filter(v => v.thumb);
+  if(!list.length) return toast('Нет превью');
+  toast(`Скачиваю ${list.length}…`);
+  for(const v of list){ await downloadThumb(v, true); await sleep(350); }
+};
+$('#allTitles').onclick = () => {
+  const t = [...cards.values()].filter(v => v.title).map(v => v.title).join('\n');
+  t ? copy(t) : toast('Нет названий');
+};
+$('#clearGrid').onclick = () => { cards.clear(); $('#grid').innerHTML = ''; updateCount(); setStatus(''); };
+
+/* ---------- events ---------- */
+function submit(){
+  const text = $('#url').value;
+  const ids = parseMany(text);
+  addMany(ids);
+  if(ids.length) $('#url').value = '';
+}
+$('#form').onsubmit = e => { e.preventDefault(); submit(); };
+$('#url').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); submit(); } });
+$('#url').addEventListener('paste', () => setTimeout(() => { if(parseMany($('#url').value).length) submit(); }, 0));
+
+renderHistory();
+updateCount();
+const q = new URLSearchParams(location.search).get('v');
+if(q) addMany(parseMany(q));
+})();
+</script>
+</body>
+</html>
